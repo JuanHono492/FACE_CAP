@@ -18,8 +18,8 @@ model_path = os.path.join(current_dir, 'modelo_entrenado.xml')
 face_recognizer.read(model_path)
 
 # Inicializar la captura de video
-cap = cv2.VideoCapture(1)  # Cambiado para captura desde la cámara
-#'2.- Practica/waos.mp4'
+cap = cv2.VideoCapture(2)  # Cambiado para captura desde la cámara
+# '2.- Practica/German.mp4'
 
 detections_counter = {}  # Diccionario para realizar un seguimiento de las detecciones
 
@@ -45,7 +45,7 @@ while cap.isOpened():
         label, confidence = face_recognizer.predict(face_roi)
 
         # Obtener el nombre de la persona reconocida
-        if confidence > 101:
+        if confidence > 100:  # Ajusta este umbral según sea necesario
             # Persona desconocida (dibujar en rojo)
             color = (0, 0, 255)  # Rojo
             person_name = 'Desconocido'
@@ -61,7 +61,7 @@ while cap.isOpened():
         cv2.putText(frame, f'Persona: {person_name}', (x, y - 40),
             cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        # Mostrar el nivel de confianza con el formato "00,00"
+        # Mostrar el nivel de confianza con el formato "00.00"
         confidence_text = f'Confianza: {confidence:.2f}'  # Formato para mostrar solo dos decimales
         cv2.putText(frame, confidence_text, (x, y - 10),
             cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
@@ -72,7 +72,7 @@ while cap.isOpened():
         else:
             detections_counter[person_name] = 1
 
-        # Verificar si se ha detectado el nombre 5 veces
+        # Verificar si se ha detectado el nombre 15 veces
         if detections_counter[person_name] == 15 and person_name != 'Desconocido':
             # Mostrar la alerta en la terminal
             alert_message = f'{person_name} asistió'
