@@ -36,8 +36,8 @@ for nameDir in peopleList:
     last_label += 1
 
     # Agregar el nombre de la persona al diccionario si no existe
-    if last_label not in label_to_name:
-        label_to_name[last_label] = nameDir
+    if str(last_label) not in label_to_name:
+        label_to_name[str(last_label)] = nameDir
 
     for fileName in os.listdir(personPath):
         print('Rostro:', nameDir + '/' + fileName)
@@ -79,3 +79,4 @@ with open(label_to_name_path, 'w') as f:
 print("Borrando imágenes de entrenamiento...")
 shutil.rmtree(dataPath)
 print("Imágenes de entrenamiento borradas.")
+
