@@ -1,92 +1,112 @@
 import tkinter as tk
 import subprocess
-import sys
+from Interfaz.addArea import gestionar_areas
+from Interfaz.Agregarbd import AgregarBaseDeDatos  # Importar la clase AgregarBaseDeDatos
 
-# Obtener el nombre de usuario de los argumentos
-username = sys.argv[1] if len(sys.argv) > 1 else None
+def principal_view(root, username):
+    def cargar_usuarios():
+        try:
+            for widget in root.winfo_children():
+                widget.destroy()
+            subprocess.run(["python", "Interfaz/Data.py"], check=True)
+        except subprocess.CalledProcessError as e:
+            mostrar_notificacion(f"Error al cargar usuarios: {e}", color="red")
 
-def cargar_usuarios():
-    try:
-        root.destroy()  # Cerrar la ventana actual
-        subprocess.run(["python", "Interfaz/Data.py"], check=True)
-    except subprocess.CalledProcessError as e:
-        mostrar_notificacion(f"Error al cargar usuarios: {e}", color="red")
+    def ver_usuarios_actuales():
+        print("Mostrando usuarios actuales...")
 
-def ver_usuarios_actuales():
-    print("Mostrando usuarios actuales...")
+    def agregar_database():
+        # Abrir la vista de Agregar Base de Datos
+        AgregarBaseDeDatos(tk.Toplevel(root))
 
-def agregar_database():
-    try:
-        subprocess.run(["python", "Interfaz/Agregarbd.py"], check=True)
-    except subprocess.CalledProcessError as e:
-        mostrar_notificacion(f"Error al abrir Agregarbd.py: {e}", color="red")
+    def agregar_area():
+        gestionar_areas(root, username, principal_view)
 
-def ejecutar_reconocimiento():
-    try:
-        subprocess.Popen(["python", "Back/Reconocimiento-gray.py"])
-    except Exception as e:
-        mostrar_notificacion(f"Error al ejecutar reconocimiento facial: {e}", color="red")
+    def asignacion_camaras():
+        try:
+            subprocess.run(["python", "Interfaz/asignar_camaras.py"], check=True)
+        except subprocess.CalledProcessError as e:
+            mostrar_notificacion(f"Error al abrir Asignar_camaras.py: {e}", color="red")
 
-def mostrar_notificacion(mensaje, color="green"):
-    notificacion_label.config(text=mensaje, fg=color)
-    root.after(2000, limpiar_notificacion)  # Limpiar notificación después de 10 segundos
+    def ejecutar_reconocimiento():
+        try:
+            subprocess.Popen(["python", "Back/Reconocimiento-gray.py"])
+        except Exception as e:
+            mostrar_notificacion(f"Error al ejecutar reconocimiento facial: {e}", color="red")
 
-def limpiar_notificacion():
-    notificacion_label.config(text="")
+    def mostrar_notificacion(mensaje, color="green"):
+        notificacion_label.config(text=mensaje, fg=color)
+        root.after(2000, limpiar_notificacion)
 
-def cerrar_sesion():
-    root.destroy()  # Cierra la ventana actual
-    subprocess.Popen(["python", "FACE_CAP.py"])  # Vuelve a la pantalla de inicio de sesión
+    def limpiar_notificacion():
+        notificacion_label.config(text="")
+
+    def cerrar_sesion():
+        for widget in root.winfo_children():
+            widget.destroy()
+        cargar_login_view(root)
+
+    root.geometry("800x650")
+    root.configure(bg="#e0f7fa")
+
+    main_frame = tk.Frame(root, bg="white", bd=2, relief="solid")
+    main_frame.pack(expand=True, padx=20, pady=20, fill=tk.BOTH)
+
+    bienvenida_label = tk.Label(main_frame, text=f"Bienvenido, {username}", font=("Arial", 18), bg="white", fg="black")
+    bienvenida_label.pack(pady=10)
+
+    notificacion_label = tk.Label(main_frame, text="", font=("Arial", 12), bg="#e0f7fa", fg="red")
+    notificacion_label.pack(pady=10)
+
+    button_style = {"font": ("Arial", 14), "bg": "#004d40", "fg": "white", "activebackground": "#00332d", "activeforeground": "white", "bd": 2, "relief": tk.RAISED, "borderwidth": 3}
+
+    tk.Button(main_frame, text="Agregar áreas", command=agregar_area, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Asignar cámaras", command=asignacion_camaras, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Cargar Usuarios", command=cargar_usuarios, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Ver Usuarios Actuales", command=ver_usuarios_actuales, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Conectar base de datos", command=agregar_database, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Ejecutar Reconocimiento Facial", command=ejecutar_reconocimiento, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+    tk.Button(main_frame, text="Cerrar Sesión", command=cerrar_sesion, **button_style).pack(pady=10, padx=20, fill=tk.BOTH)
+
+def cargar_login_view(root):
+    for widget in root.winfo_children():
+        widget.destroy()
+    # Aquí debes cargar el contenido del archivo original FACE_CAP.py que maneja la vista de inicio de sesión
 
 # Crear la ventana principal
-root = tk.Tk()
-root.title("Tablero principal")
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.title("Sistema de Reconocimiento Facial")
+    root.geometry("820x650")
+    root.configure(bg="#00AA66")
 
-# Configurar el tamaño de la ventana
-root.geometry("800x600")
-root.configure(bg="#e0f7fa")  # Fondo azul claro
+    main_frame = tk.Frame(root, bg="#ffffff", bd=2, relief="solid")
+    main_frame.pack(expand=True, padx=20, pady=20)
 
-# Crear un frame principal con fondo blanco y borde
-main_frame = tk.Frame(root, bg="white", bd=2, relief="solid")
-main_frame.pack(expand=True, padx=20, pady=20, fill=tk.BOTH)
+    logo_image = tk.PhotoImage(file="Interfaz/logo.png")
+    logo_label = tk.Label(main_frame, image=logo_image, bg="#ffffff")
+    logo_label.grid(row=0, column=0, columnspan=2, pady=20)
 
-# Crear una etiqueta de bienvenida
-if username:
-    bienvenida_label = tk.Label(main_frame, text=f"Bienvenido, {username}", font=("Arial", 18), bg="white", fg="black")
-else:
-    bienvenida_label = tk.Label(main_frame, text="Bienvenido", font=("Arial", 18), bg="white", fg="black")
-bienvenida_label.pack(pady=10)  # Colocar la etiqueta de bienvenida en el layout
+    form_frame = tk.Frame(main_frame, bg="#ffffff")
+    form_frame.grid(row=1, column=0, columnspan=2, pady=20)
 
-# Crear un frame para la entrada del usuario
-input_frame = tk.Frame(main_frame, bg="white")
-input_frame.pack(pady=20)
+    tk.Label(form_frame, text="Nombre de usuario:", font=("Arial", 12), bg="#ffffff").grid(row=0, column=0, padx=10, pady=5, sticky="e")
+    username_entry = tk.Entry(form_frame, font=("Arial", 12))
+    username_entry.grid(row=0, column=1, padx=10, pady=5)
 
-# Etiqueta para notificaciones
-notificacion_label = tk.Label(main_frame, text="", font=("Arial", 12), bg="#e0f7fa", fg="red")
-notificacion_label.pack(pady=10)
+    tk.Label(form_frame, text="Contraseña:", font=("Arial", 12), bg="#ffffff").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+    password_entry = tk.Entry(form_frame, show="*", font=("Arial", 12))
+    password_entry.grid(row=1, column=1, padx=10, pady=5)
 
-# Estilo para los botones
-button_style = {"font": ("Arial", 14), "bg": "#004d40", "fg": "white", "activebackground": "#00332d", "activeforeground": "white", "bd": 2, "relief": tk.RAISED, "borderwidth": 3}
+    toggle_button = tk.Button(form_frame, text="Mostrar contraseña", font=("Arial", 12), bg="#004d40", fg="#ffffff", activebackground="#00332d", activeforeground="#ffffff", bd=2, relief=tk.RAISED, borderwidth=3)
+    toggle_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
 
-# Botón para cargar usuarios
-cargar_button = tk.Button(main_frame, text="Cargar Usuarios", command=cargar_usuarios, **button_style)
-cargar_button.pack(pady=10, padx=20, fill=tk.BOTH)
+    login_button = tk.Button(form_frame, text="Iniciar sesión", font=("Arial", 12), bg="#004d40", fg="#ffffff", activebackground="#00332d", activeforeground="#ffffff", bd=2, relief=tk.RAISED, borderwidth=3)
+    login_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
 
-# Botón para ver usuarios actuales
-ver_button = tk.Button(main_frame, text="Ver Usuarios Actuales", command=ver_usuarios_actuales, **button_style)
-ver_button.pack(pady=10, padx=20, fill=tk.BOTH)
+    register_button = tk.Button(form_frame, text="Registrar", font=("Arial", 12), bg="#004d40", fg="#ffffff", activebackground="#00332d", activeforeground="#ffffff", bd=2, relief=tk.RAISED, borderwidth=3)
+    register_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
-# Botón para agregar usuario
-agregar_button = tk.Button(main_frame, text="Conectar base de datos", command=agregar_database, **button_style)
-agregar_button.pack(pady=10, padx=20, fill=tk.BOTH)
+    loading_label = tk.Label(form_frame, text="Cargando...", font=("Arial", 12), bg="#ffffff")
 
-# Botón para ejecutar reconocimiento facial
-reconocimiento_button = tk.Button(main_frame, text="Ejecutar Reconocimiento Facial", command=ejecutar_reconocimiento, **button_style)
-reconocimiento_button.pack(pady=10, padx=20, fill=tk.BOTH)
-
-# Botón para cerrar sesión
-cerrar_sesion_button = tk.Button(main_frame, text="Cerrar Sesión", command=cerrar_sesion, **button_style)
-cerrar_sesion_button.pack(pady=10, padx=20, fill=tk.BOTH)
-
-# Iniciar el bucle de la ventana
-root.mainloop()
+    root.mainloop()
