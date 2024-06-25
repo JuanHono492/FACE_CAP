@@ -11,10 +11,9 @@ print('Lista de personas:', peopleList)
 
 labels = []
 facesData = []
-last_label = 0  # Última etiqueta asignada
-
-# Cargar el diccionario de nombres desde el archivo JSON si existe
 label_to_name_path = os.path.join('Back', 'label_to_name.json')
+
+# Cargar o crear el diccionario de nombres y áreas
 if os.path.exists(label_to_name_path):
     with open(label_to_name_path, 'r') as f:
         label_to_name = json.load(f)
@@ -22,11 +21,13 @@ else:
     label_to_name = {}
 
 # Obtener la última etiqueta asignada si el diccionario no está vacío
-if label_to_name:
-    last_label = int(max(label_to_name.keys()))
+last_label = int(max(label_to_name.keys(), default=0))
 
 # Definir el tamaño deseado para las imágenes de entrenamiento
 desired_size = (100, 100)
+
+# Lista para mantener el orden de las etiquetas
+label_order = []
 
 for nameDir in peopleList:
     personPath = os.path.join(dataPath, nameDir)
@@ -35,13 +36,21 @@ for nameDir in peopleList:
     # Incrementar el valor de la etiqueta para cada nueva persona
     last_label += 1
 
-    # Agregar el nombre de la persona al diccionario si no existe
+    # Aquí deberías cargar las áreas correspondientes al usuario desde un archivo o una variable global
+    # Por ahora, usaremos un ejemplo fijo
+    areas = ["Area de TI", "Area de soporte"]
+
+    # Agregar el nombre de la persona y las áreas al diccionario si no existen
     if str(last_label) not in label_to_name:
-        label_to_name[str(last_label)] = nameDir
+        label_to_name[str(last_label)] = {
+            "nombre": nameDir,
+            "areas": areas
+        }
+        label_order.append(str(last_label))
 
     for fileName in os.listdir(personPath):
         print('Rostro:', nameDir + '/' + fileName)
-        labels.append(last_label)  # Usar la etiqueta actual
+        labels.append(last_label)
         # Leer la imagen y redimensionarla al tamaño deseado
         imagePath = os.path.join(personPath, fileName)
         image = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
@@ -71,12 +80,12 @@ face_recognizer.update(facesData, labels)
 face_recognizer.save(model_path)
 print("Modelo actualizado y guardado en:", model_path)
 
-# Guardar el diccionario de nombres en el archivo JSON
+# Guardar el diccionario de nombres y áreas en el archivo JSON respetando el orden de etiquetas
 with open(label_to_name_path, 'w') as f:
-    json.dump(label_to_name, f)
+    ordered_label_to_name = {key: label_to_name[key] for key in sorted(label_to_name, key=int)}
+    json.dump(ordered_label_to_name, f, indent=4)
 
 # Borrar las imágenes de entrenamiento después de que el modelo ha sido creado
 print("Borrando imágenes de entrenamiento...")
 shutil.rmtree(dataPath)
 print("Imágenes de entrenamiento borradas.")
-

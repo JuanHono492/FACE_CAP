@@ -1,1 +1,9 @@
-{"1": "Kenneth", "2": "Juan Jose Hono Inquilla"}
+{
+    "1": {
+        "nombre": "Juan Hono",
+        "areas": [
+            "Area de TI",
+            "Area de soporte"
+        ]
+    }
+}

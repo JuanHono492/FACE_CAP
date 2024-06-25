@@ -2,9 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from usuarios import verificar_credenciales, registrar_usuario
-from Interfaz.Principal import principal_view
+from Interfaz.Principal import cargar_login_view, principal_view
 from Interfaz.addArea import gestionar_areas  # Import relativo si están en el mismo módulo
-
 
 def login():
     username = username_entry.get()
@@ -12,16 +11,16 @@ def login():
 
     if verificar_credenciales(username, password):
         loading_label.grid(row=5, column=0, columnspan=2, pady=10)
-        root.after(2000, lambda: open_data_section(username))
+        root.after(2000, lambda: open_principal_view(username))
     else:
         messagebox.showerror("Error de inicio de sesión", "Nombre de usuario o contraseña incorrectos")
 
-def open_data_section(username):
+def open_principal_view(username):
     loading_label.grid_forget()
     for widget in root.winfo_children():
         widget.destroy()
     root.geometry("800x650")
-    principal_view(root, username)
+    principal_view(root, username, cargar_login_view)
 
 def toggle_password_visibility():
     if password_entry.cget("show") == "":
@@ -57,7 +56,7 @@ def show_register_window():
 # Crear la ventana principal
 root = tk.Tk()
 root.title("Sistema de Reconocimiento Facial")
-root.geometry("820x650")
+root.geometry("800x700")
 root.configure(bg="#00AA66")
 
 # Crear un frame principal para centrar el contenido con fondo blanco y borde

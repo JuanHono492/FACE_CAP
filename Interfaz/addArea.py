@@ -64,7 +64,8 @@ def cargar_areas_desde_archivo():
     else:
         messagebox.showwarning("Advertencia", "No se seleccionó ningún archivo.")
 
-def gestionar_areas(root, username, principal_view):
+def gestionar_areas(root, username, regresar_a_principal, cargar_login_view):
+
     for widget in root.winfo_children():
         widget.destroy()
 
@@ -90,11 +91,6 @@ def gestionar_areas(root, username, principal_view):
     tk.Button(root, text="Cargar Áreas desde Archivo JSON", command=cargar_areas_desde_archivo, bg="#2196f3", fg="white", font=("Arial", 12)).pack(pady=10)
 
     # Botón para regresar a la vista principal
-    tk.Button(root, text="Regresar", command=lambda: regresar_a_principal(root, username, principal_view), bg="#ff9800", fg="white", font=("Arial", 12)).pack(pady=10)
+    tk.Button(root, text="Regresar a Principal", command=lambda: regresar_a_principal(username, cargar_login_view), bg="#ff9800", fg="white", font=("Arial", 12)).pack(pady=10)
 
     actualizar_lista_areas()
-
-def regresar_a_principal(root, username, principal_view):
-    for widget in root.winfo_children():
-        widget.destroy()
-    principal_view(root, username)

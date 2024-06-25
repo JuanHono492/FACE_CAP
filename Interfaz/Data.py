@@ -2,27 +2,71 @@ import os
 import cv2
 import imutils
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 import threading
+import json
 import subprocess
-import shutil
-from tkinter import ttk
 
-# Lista para almacenar los usuarios capturados
-usuarios_capturados = []
+# Ruta del archivo JSON
+areas_path = 'areas.json'
+label_to_name_path = os.path.join('Back', 'label_to_name.json')
 
-# Función para capturar datos desde la cámara
-def capturar_camara(nombre):
+# Función para cargar áreas desde el archivo JSON
+def cargar_areas():
+    if os.path.exists(areas_path):
+        with open(areas_path, 'r') as f:
+            data = json.load(f)
+            return data.get('areas', [])
+    return []
+
+# Función para cargar el diccionario de nombres y áreas
+def cargar_label_to_name():
+    if os.path.exists(label_to_name_path):
+        with open(label_to_name_path, 'r') as f:
+            return json.load(f)
+    return {}
+
+def centrar_imagen(frame, width, height):
+    h, w = frame.shape[:2]
+    top = max((height - h) // 2, 0)
+    bottom = max(height - h - top, 0)
+    left = max((width - w) // 2, 0)
+    right = max(width - (w + left), 0)
+    color = [0, 0, 0]
+    frame = cv2.copyMakeBorder(frame, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
+    return frame
+
+def eliminar_usuario(root):
+    selected_item = tabla.selection()
+    if not selected_item:
+        messagebox.showwarning("Advertencia", "Seleccione un usuario para eliminar.")
+        return
+
+    idx = selected_item[0]
+    usuario = tabla.item(idx)['values']
+
+    # Eliminar la carpeta del usuario después de eliminarlo de la tabla
+    personPath = os.path.join('Data', usuario[1])
+    if os.path.exists(personPath):
+        import shutil
+        shutil.rmtree(personPath)
+        mostrar_notificacion(f'Carpeta eliminada: {personPath}', root, color="red")
+
+    # Eliminar el usuario de la tabla
+    tabla.delete(idx)
+    mostrar_notificacion(f'Usuario {usuario[1]} eliminado.', root, color="red")
+
+def capturar_desde_camara(root, nombre, areas):
     dataPath = 'Data'
     personPath = os.path.join(dataPath, nombre)
 
     if not os.path.exists(personPath):
         os.makedirs(personPath)
-        mostrar_notificacion(f'Carpeta creada: {personPath}', color= str("green"))
+        mostrar_notificacion(f'Carpeta creada: {personPath}', root, color="green")
 
     cap = cv2.VideoCapture(0)  # Cámara por defecto
-    mostrar_notificacion('Capturando datos desde la cámara...', color= str("green"))
+    mostrar_notificacion('Capturando datos desde la cámara...', root, color="green")
 
     count = 0
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -50,36 +94,34 @@ def capturar_camara(nombre):
         imgtk = ImageTk.PhotoImage(image=img)
 
         # Mostrar la imagen en el widget Label
-        label.imgtk = imgtk
-        label.configure(image=imgtk)
-        root.update()  # Actualizar la interfaz
+        label_captura.imgtk = imgtk
+        label_captura.configure(image=imgtk)
 
         if cv2.waitKey(1) == 27 or count >= 200:
             break
-
+    root.update()   
     cap.release()
     cv2.destroyAllWindows()
-    usuarios_capturados.append({"nombre": nombre, "rostros": count})
+    usuarios_capturados.append({"nombre": nombre, "rostros": count, "areas": areas})
     actualizar_tabla()
-    mostrar_notificacion(f'Captura completada. Se guardaron {count} imágenes en {personPath}' , color= str("green"))
+    mostrar_notificacion(f'Captura completada. Se guardaron {count} imágenes en {personPath}', root, color="green")
     limpiar_formulario()
 
-
-def capturar_desde_archivo(nombre):
+def capturar_desde_archivo(root, nombre, areas):
     dataPath = 'Data'
     personPath = os.path.join(dataPath, nombre)
 
     if not os.path.exists(personPath):
         os.makedirs(personPath)
-        mostrar_notificacion(f'Carpeta creada: {personPath}', color=str("green"))
+        mostrar_notificacion(f'Carpeta creada: {personPath}', root, color="green")
 
     video_path = filedialog.askopenfilename(title="Seleccionar archivo de video", filetypes=[("Archivos de video", "*.mp4 *.avi")])
     if not video_path:
-        mostrar_notificacion("No se seleccionó ningún archivo de video.")
+        mostrar_notificacion("No se seleccionó ningún archivo de video.", root)
         return
 
     cap = cv2.VideoCapture(video_path)
-    mostrar_notificacion('Capturando datos desde el archivo de video...', color=str("green"))
+    mostrar_notificacion('Capturando datos desde el archivo de video...', root, color="green")
 
     count = 0
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -97,7 +139,7 @@ def capturar_desde_archivo(nombre):
 
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            resized_face = cv2.resize(gray[y:y + h, x:x + w], (50, 50))
+            resized_face = cv2.resize(gray[y:y + h, x:x + w], (50, 50))  # Corregido aquí
             for i in range(2):
                 cv2.imwrite(os.path.join(personPath, f'rostro_{count}.jpg'), resized_face)
                 count += 1
@@ -109,202 +151,139 @@ def capturar_desde_archivo(nombre):
         imgtk = ImageTk.PhotoImage(image=img)
 
         # Mostrar la imagen en el widget Label
-        label.imgtk = imgtk
-        label.configure(image=imgtk)
-        root.update()  # Actualizar la interfaz
+        label_captura.imgtk = imgtk
+        label_captura.configure(image=imgtk)
+        
 
         if cv2.waitKey(1) == 27 or count >= 200:
             break
-
+    root.update()
     cap.release()
     cv2.destroyAllWindows()
-    usuarios_capturados.append({"nombre": nombre, "rostros": count})
+    usuarios_capturados.append({"nombre": nombre, "rostros": count, "areas": areas})
     actualizar_tabla()
-    mostrar_notificacion(f'Captura completada. Se guardaron {count} imágenes en {personPath}', color=str("green"))
+    mostrar_notificacion(f'Captura completada. Se guardaron {count} imágenes en {personPath}', root, color="green")
     limpiar_formulario()
 
-
-
-def centrar_imagen(frame, width, height):
-    """
-    Función para centrar una imagen en un cuadro de tamaño específico.
-    :param frame: La imagen para centrar.
-    :param width: Ancho deseado del cuadro.
-    :param height: Altura deseada del cuadro.
-    :return: La imagen centrada.
-    """
-    h, w = frame.shape[:2]
-    if h < height or w < width:
-        # Si la imagen es más pequeña que el cuadro, redimensionarla
-        frame = cv2.resize(frame, (width, height))
-        return frame
-    else:
-        top = (h - height) // 2
-        bottom = h - top - height
-        left = (w - width) // 2
-        right = w - left - width
-        return cv2.copyMakeBorder(frame, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(0, 0, 0))
-
-
-
-# Función para limpiar el formulario y restaurar la interfaz
-def limpiar_formulario():
-    nombre_entry.delete(0, tk.END)
-    label.configure(image='')  # Limpiar la imagen mostrada
-
-# Función para manejar el botón de captura de datos
-def capturar_datos():
+def capturar_datos(root):
     nombre = nombre_entry.get()
     if nombre:
-        if opcion_var.get() == 0:  # Si se selecciona la opción de captura desde la cámara
-            threading.Thread(target=capturar_camara, args=(nombre,)).start()
-        else:  # Si se selecciona la opción de captura desde un archivo de video
-            threading.Thread(target=capturar_desde_archivo, args=(nombre,)).start()
+        areas = [area for area, var in area_vars.items() if var.get()]
+        if opcion_var.get() == 0:  # Captura desde cámara
+            threading.Thread(target=capturar_desde_camara, args=(root, nombre, areas)).start()
+        else:  # Captura desde archivo
+            threading.Thread(target=capturar_desde_archivo, args=(root, nombre, areas)).start()
     else:
-        mostrar_notificacion("El nombre no puede estar vacío.")
+        mostrar_notificacion("El nombre no puede estar vacío.", root)
 
+def mostrar_notificacion(mensaje, root, color="green"):
+    notificacion_label.config(text=mensaje, foreground=color)
+    root.after(5000, limpiar_notificacion, root)
 
-# Función para mostrar notificaciones temporales
-def mostrar_notificacion(mensaje, color="green"):
-    notificacion_label.config(text=mensaje, fg=color)
-    root.after(5000, limpiar_notificacion)  # Limpiar notificación después de 5 segundos
-
-# Función para limpiar notificaciones
-def limpiar_notificacion():
+def limpiar_notificacion(root):
     notificacion_label.config(text="")
 
-# Función para subir datos al modelo
-def subir_datos_al_modelo():
+def limpiar_formulario():
+    nombre_entry.delete(0, tk.END)
+    label_captura.configure(image='')  # Limpiar la imagen mostrada
+    # Limpiar las áreas seleccionadas
+    for var in area_vars.values():
+        var.set(False)
+
+def actualizar_tabla():
+    for i in tabla.get_children():
+        tabla.delete(i)
+    for idx, usuario in enumerate(usuarios_capturados, start=1):
+        tabla.insert("", "end", values=(idx, usuario["nombre"], usuario["rostros"], ", ".join(usuario["areas"])))
+
+def subir_datos_al_modelo(root):
     try:
         subprocess.run(["python", "Back/Entrenamiento.py"], check=True)
         limpiar_tabla()
-        mostrar_notificacion('Datos subidos correctamente')
+        mostrar_notificacion('Datos subidos correctamente', root, color="green")
     except subprocess.CalledProcessError as e:
-        mostrar_notificacion1(f"Error al subir datos al modelo: {e}")
-
-
-def volver_actividad_anterior():
-    # volver a la actividad anterior
-    try:
-        root.destroy()
-        subprocess.run(["python", "Interfaz/Principal.py"], check=True)
-    except Exception as e:
-        print("Error al volver:", e)
-
-
-# Función para mostrar notificaciones temporales
-def mostrar_notificacion1(mensaje, color="red"):
-    notificacion_label.config(text=mensaje, fg=color)
-    root.after(10000, limpiar_notificacion)  # Limpiar notificación después de 10 segundos
-
-
-# Crear la ventana principal
-root = tk.Tk()
-root.protocol("WM_DELETE_WINDOW", lambda: None) # Deshabilitar el cierre de la ventana
-root.title("Captura de Datos para Entrenamiento Facial")
-root.geometry("800x700")
-root.resizable(False, False)
-root.configure(bg="#e0f7fa")
-
-# Estilos
-estilo_label = {"font": ("Arial", 14), "bg": "#e0f7fa"}
-estilo_entry = {"font": ("Arial", 14), "bd": 2, "relief": "solid"}
-estilo_button = {"font": ("Arial", 14), "bg": "#004d40", "fg": "white", "activebackground": "#00332d", "activeforeground": "white", "bd": 2, "relief": tk.RAISED, "borderwidth": 3}
-
-# Crear un frame principal con fondo blanco y borde
-main_frame = tk.Frame(root, bg="white", bd=2, relief="solid")
-main_frame.pack(expand=True, padx=20, pady=20, fill=tk.BOTH)
-
-# Crear etiquetas y campos de entrada en el frame principal
-nombre_label = tk.Label(main_frame, text="Nombre completo:", **estilo_label)
-nombre_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
-nombre_entry = tk.Entry(main_frame, **estilo_entry)
-nombre_entry.grid(row=0, column=1, padx=10, pady=5)
-
-# Opciones para capturar datos desde la cámara o desde un archivo de video
-opcion_var = tk.IntVar()
-camara_radio = tk.Radiobutton(main_frame, text="Usar cámara", variable=opcion_var, value=0, **estilo_label)
-camara_radio.grid(row=1, column=0, padx=10, pady=5, sticky="w")
-archivo_radio = tk.Radiobutton(main_frame, text="Usar archivo de video", variable=opcion_var, value=1, **estilo_label)
-archivo_radio.grid(row=1, column=1, padx=10, pady=5, sticky="w")
-# Establecer el tamaño fijo de los radio botones
-camara_radio.config(width=20, height=4)
-archivo_radio.config(width=20, height=4)
-
-# Widget Label para mostrar la captura de la cámara
-label = tk.Label(main_frame, bg="#ffffff")
-label.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
-
-# Botón para capturar datos
-capturar_button = tk.Button(main_frame, text="Capturar Datos", command=capturar_datos, **estilo_button)
-capturar_button.grid(row=3, column=0, columnspan=2, padx=10, pady=10)
-
-# Botón para subir datos al modelo
-subir_button = tk.Button(main_frame, text="Subir Datos al Modelo", command=subir_datos_al_modelo, **estilo_button)
-subir_button.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
-
-# Botón para volver a la actividad anterior
-volver_button = tk.Button(main_frame, text="Volver", command=volver_actividad_anterior, **estilo_button)
-volver_button.grid(row=5, column=0, columnspan=2, padx=10, pady=10)
-
-# Label para notificaciones
-notificacion_label = tk.Label(main_frame, text="", font=("Arial", 12), bg="#e0f7fa", fg="red")
-notificacion_label.grid(row=6, column=0, columnspan=2, padx=10)
-
-# Centrar los widgets dentro del frame principal
-for child in main_frame.winfo_children():
-    child.grid_configure(padx=10, pady=5)
-
-# Tabla para mostrar usuarios agregados
-tabla_frame = tk.Frame(main_frame, bg="white", bd=2, relief="solid")
-tabla_frame.grid(row=7, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
-
-# Configurar la tabla
-tabla = ttk.Treeview(tabla_frame, columns=("Nombre", "Rostros Capturados", "Borrar"), show="headings")
-tabla.heading("Nombre", text="Nombre")
-tabla.heading("Rostros Capturados", text="Rostros Capturados")
-tabla.heading("Borrar", text="Borrar")
-tabla.pack(fill="both", expand=True)  # Empaqueta la tabla dentro del frame
-
-
-# Función para actualizar la tabla con los usuarios capturados
-def actualizar_tabla():
-    # Limpiar la tabla
-    for i in tabla.get_children():
-        tabla.delete(i)
-    # Agregar usuarios capturados a la tabla
-    for usuario in usuarios_capturados:
-        tabla.insert("", "end", values=(usuario["nombre"], usuario["rostros"]))
+        mostrar_notificacion(f'Error al subir los datos: {e}', root, color="red")
 
 def limpiar_tabla():
     for i in tabla.get_children():
         tabla.delete(i)
 
+def regresar_a_principal(root, username, cargar_login_view):
+    for widget in root.winfo_children():
+        widget.destroy()
+    from Interfaz.Principal import principal_view
+    principal_view(root, username, cargar_login_view)
 
-# Cargar la imagen de eliminar
-imagen_eliminar = tk.PhotoImage(file="Interfaz/eliminar.png")
+def iniciar_interfaz(root, username, regresar_a_principal, cargar_login_view):
+    global nombre_entry, opcion_var, area_vars, tabla, notificacion_label, label_captura, usuarios_capturados
+    for widget in root.winfo_children():
+        widget.destroy()
 
-def borrar_usuario():
-    selected_item = tabla.selection()
-    if selected_item:
-        # Obtener el nombre del usuario seleccionado
-        usuario_seleccionado = tabla.item(selected_item)['values'][0]
-        
-        # Eliminar la carpeta del usuario seleccionado
-        data_path = '1.- Data'
-        person_path = os.path.join(data_path, usuario_seleccionado)
-        if os.path.exists(person_path):
-            shutil.rmtree(person_path)
-        
-        # Eliminar el usuario de la lista de usuarios capturados
-        for usuario in usuarios_capturados:
-            if usuario['nombre'] == usuario_seleccionado:
-                usuarios_capturados.remove(usuario)
-                break
-        
-        # Eliminar la fila seleccionada de la tabla
-        tabla.delete(selected_item)
+    # Crear el formulario de captura de datos
+    frame_formulario = ttk.Frame(root)
+    frame_formulario.pack(side=tk.LEFT, fill=tk.Y, padx=20, pady=20)
 
+    # Etiqueta y campo de entrada para el nombre
+    ttk.Label(frame_formulario, text="Nombre:").pack(anchor=tk.W)
+    nombre_entry = ttk.Entry(frame_formulario)
+    nombre_entry.pack(fill=tk.X)
 
-# Iniciar el bucle de la ventana
-root.mainloop()
+    # Opciones de captura
+    opcion_var = tk.IntVar(value=0)
+    ttk.Radiobutton(frame_formulario, text="Capturar desde cámara", variable=opcion_var, value=0).pack(anchor=tk.W)
+    ttk.Radiobutton(frame_formulario, text="Capturar desde archivo", variable=opcion_var, value=1).pack(anchor=tk.W)
+
+    # Lista de áreas
+    areas = cargar_areas()
+    area_vars = {}
+    for area in areas:
+        var = tk.BooleanVar()
+        chk = ttk.Checkbutton(frame_formulario, text=area, variable=var)
+        chk.pack(anchor=tk.W)
+        area_vars[area] = var
+
+    # Botón para capturar datos
+    ttk.Button(frame_formulario, text="Capturar datos", command=lambda: capturar_datos(root)).pack(pady=10)
+
+    # Label para notificaciones
+    notificacion_label = ttk.Label(frame_formulario, text="")
+    notificacion_label.pack(pady=10)
+
+    # Crear el frame para la tabla y el label de captura
+    frame_derecho = ttk.Frame(root)
+    frame_derecho.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+    # Frame para la tabla
+    frame_tabla = ttk.Frame(frame_derecho)
+    frame_tabla.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    # Crear la tabla para mostrar los datos capturados
+    tabla = ttk.Treeview(frame_tabla, columns=("ID", "Nombre", "Rostros", "Áreas"), show="headings")
+    tabla.heading("ID", text="ID")
+    tabla.heading("Nombre", text="Nombre")
+    tabla.heading("Rostros", text="Rostros")
+    tabla.heading("Áreas", text="Áreas")
+    tabla.pack(fill=tk.BOTH, expand=True)
+
+    # Botón para eliminar un usuario
+    ttk.Button(frame_tabla, text="Eliminar usuario", command=lambda: eliminar_usuario(root)).pack(pady=10)
+
+    # Botón para subir los datos al modelo
+    ttk.Button(frame_tabla, text="Entrenar modelo", command=lambda: subir_datos_al_modelo(root)).pack(pady=10)
+
+    # Botón para regresar a la vista principal
+    ttk.Button(frame_tabla, text="Regresar a Principal", command=lambda: regresar_a_principal(root, username, cargar_login_view)).pack(pady=10)
+
+    # Crear el frame para la visualización de la captura
+    frame_captura = ttk.Frame(frame_derecho)
+    frame_captura.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+    # Label para mostrar la captura de la cámara o el video
+    label_captura = ttk.Label(frame_captura)
+    label_captura.pack(fill=tk.BOTH, expand=True)
+
+    # Cargar el diccionario de nombres y áreas
+    label_to_name = cargar_label_to_name()
+
+    # Inicializar usuarios capturados
+    usuarios_capturados = []
