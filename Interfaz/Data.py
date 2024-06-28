@@ -7,6 +7,20 @@ from PIL import Image, ImageTk
 import threading
 import json
 import subprocess
+import sys
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+file_path = resource_path("haarcascade_frontalface_default.xml")
+
+# Verificar si el archivo Haar Cascade existe en la ruta especificada
+if not os.path.exists(file_path):
+    raise FileNotFoundError(f"El archivo Haar Cascade no se encuentra en la ruta: {file_path}")
 
 # Ruta del archivo JSON
 areas_path = 'areas.json'
@@ -15,16 +29,26 @@ label_to_name_path = os.path.join('Back', 'label_to_name.json')
 # Función para cargar áreas desde el archivo JSON
 def cargar_areas():
     if os.path.exists(areas_path):
-        with open(areas_path, 'r') as f:
-            data = json.load(f)
-            return data.get('areas', [])
+        try:
+            with open(areas_path, 'r') as f:
+                data = json.load(f)
+                return data.get('areas', [])
+        except json.JSONDecodeError as e:
+            print(f"Error al cargar JSON desde {areas_path}: {e}")
+    else:
+        print(f"El archivo {areas_path} no existe.")
     return []
 
 # Función para cargar el diccionario de nombres y áreas
 def cargar_label_to_name():
     if os.path.exists(label_to_name_path):
-        with open(label_to_name_path, 'r') as f:
-            return json.load(f)
+        try:
+            with open(label_to_name_path, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"Error al cargar JSON desde {label_to_name_path}: {e}")
+    else:
+        print(f"El archivo {label_to_name_path} no existe.")
     return {}
 
 def centrar_imagen(frame, width, height):
@@ -69,7 +93,7 @@ def capturar_desde_camara(root, nombre, areas):
     mostrar_notificacion('Capturando datos desde la cámara...', root, color="green")
 
     count = 0
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier(resource_path('haarcascade_frontalface_default.xml'))
 
     while True:
         ret, frame = cap.read()
@@ -124,7 +148,7 @@ def capturar_desde_archivo(root, nombre, areas):
     mostrar_notificacion('Capturando datos desde el archivo de video...', root, color="green")
 
     count = 0
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_cascade = cv2.CascadeClassifier(resource_path('haarcascade_frontalface_default.xml'))
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -287,3 +311,4 @@ def iniciar_interfaz(root, username, regresar_a_principal, cargar_login_view):
 
     # Inicializar usuarios capturados
     usuarios_capturados = []
+
